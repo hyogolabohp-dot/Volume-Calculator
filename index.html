@@ -3,292 +3,793 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>検体必要量計算機</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SortableJS (ドラッグ＆ドロップ用) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Noto Sans JP"', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: {
-                            50: '#f0fdfa',
-                            100: '#ccfbf1',
-                            500: '#14b8a6',
-                            600: '#0d9488', 
-                            700: '#0f766e',
-                        },
-                        surface: '#f8fafc',
-                    }
-                }
-            }
-        }
-    </script>
+    <title>検体必要量計算機（オフライン版）</title>
     <style>
+        /* =========================================
+           CSS変数定義 (カラーパレット)
+           ========================================= */
+        :root {
+            --primary-50: #f0fdfa;
+            --primary-100: #ccfbf1;
+            --primary-500: #14b8a6;
+            --primary-600: #0d9488;
+            --primary-700: #0f766e;
+            
+            --blue-50: #eff6ff;
+            --blue-100: #dbeafe;
+            --blue-700: #1d4ed8;
+            
+            --rose-50: #fff1f2;
+            --rose-100: #ffe4e6;
+            --rose-600: #e11d48;
+            --rose-700: #be123c;
+
+            --amber-500: #f59e0b;
+            --amber-600: #d97706;
+            
+            --bg-body: #f1f5f9;
+            --bg-surface: #ffffff;
+            --border-color: #e2e8f0;
+            
+            --text-main: #334155;
+            --text-sub: #64748b;
+            --text-light: #94a3b8;
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-top: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+
+            --radius-md: 0.375rem;
+            --radius-lg: 0.5rem;
+            --radius-xl: 0.75rem;
+            --radius-full: 9999px;
+        }
+
+        /* =========================================
+           基本スタイル
+           ========================================= */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            background-color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.5;
             -webkit-tap-highlight-color: transparent;
+            padding-bottom: 180px; /* フッター用余白 */
         }
-        /* カスタムスクロールバー */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* カード選択時のアニメーション */
-        .item-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .item-card:active { transform: scale(0.98); }
+        /* ユーティリティ */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .justify-end { justify-content: flex-end; }
+        .gap-1 { gap: 0.25rem; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-3 { gap: 0.75rem; }
+        .gap-4 { gap: 1rem; }
+        .w-full { width: 100%; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-bold { font-weight: 700; }
+        .font-medium { font-weight: 500; }
+        .cursor-pointer { cursor: pointer; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        
+        /* レイアウトコンテナ */
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        /* =========================================
+           コンポーネント: ヘッダー
+           ========================================= */
+        header {
+            background-color: var(--bg-surface);
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        .header-inner {
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .app-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: 0.025em;
+        }
+
+        .btn-reset {
+            font-size: 0.875rem;
+            color: var(--text-sub);
+            background: none;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-reset:hover {
+            color: var(--rose-600);
+            background-color: #f1f5f9;
+        }
+
+        .btn-icon {
+            padding: 0.5rem;
+            border-radius: var(--radius-full);
+            color: #94a3b8;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .btn-icon:hover {
+            color: var(--text-main);
+            background-color: #f1f5f9;
+        }
+
+        /* 検索バー */
+        .search-area {
+            background-color: #f8fafc;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .search-container {
+            padding: 0.75rem 1rem;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        .search-input-wrapper {
+            position: relative;
+        }
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+        .search-input {
+            width: 100%;
+            padding: 0.5rem 1rem 0.5rem 2.5rem;
+            border: 1px solid #cbd5e1;
+            border-radius: var(--radius-full);
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .search-input:focus {
+            border-color: var(--primary-500);
+            box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2);
+        }
+
+        /* =========================================
+           コンポーネント: アイテムカード
+           ========================================= */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            padding: 1.5rem 0;
+        }
+        @media (min-width: 640px) {
+            .grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (min-width: 1024px) {
+            .grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        .item-card {
+            background-color: var(--bg-surface);
+            border: 1px solid transparent;
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        .item-card:not(.selected) {
+            border-color: #f1f5f9;
+        }
+        .item-card:active {
+            transform: scale(0.98);
+        }
+        .item-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        /* 選択状態 */
         .item-card.selected {
-            background-color: #f0fdfa;
-            border-color: #0d9488;
-            box-shadow: 0 4px 6px -1px rgba(13, 148, 136, 0.1), 0 2px 4px -1px rgba(13, 148, 136, 0.06);
+            background-color: var(--primary-50);
+            border-color: var(--primary-600);
+            box-shadow: var(--shadow-md);
         }
-        .item-card.selected .check-icon { opacity: 1; transform: scale(1); }
+        
+        .item-name {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.25;
+            word-break: break-all;
+        }
+        
+        .check-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            background-color: var(--primary-500);
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            opacity: 0;
+            transform: scale(0.75);
+            transition: all 0.2s;
+        }
+        .item-card.selected .check-icon {
+            opacity: 1;
+            transform: scale(1);
+        }
 
-        /* 管理画面用スタイル */
-        .admin-row.sortable-ghost { opacity: 0.4; background: #ccfbf1; }
-        .admin-row.sortable-drag { background: #fff; cursor: grabbing; opacity: 1; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .drag-handle { cursor: grab; }
-        .drag-handle:active { cursor: grabbing; }
+        .item-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 0.5rem;
+        }
+        .item-category {
+            font-size: 0.75rem;
+            background-color: #f1f5f9;
+            color: var(--text-sub);
+            padding: 0.125rem 0.5rem;
+            border-radius: var(--radius-full);
+            max-width: 60%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .item-vol {
+            font-family: monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-light);
+        }
+        .item-card.selected .item-vol {
+            color: var(--primary-600);
+        }
+        .unit-sm {
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: var(--text-light);
+            margin-left: 2px;
+        }
 
-        /* モーダルアニメーション */
-        .modal-enter { opacity: 0; transform: scale(0.95); }
-        .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 200ms, transform 200ms; }
-        .modal-exit { opacity: 1; transform: scale(1); }
-        .modal-exit-active { opacity: 0; transform: scale(0.95); transition: opacity 200ms, transform 200ms; }
+        /* =========================================
+           コンポーネント: フッター (合計表示)
+           ========================================= */
+        .footer-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--bg-surface);
+            z-index: 30;
+            box-shadow: var(--shadow-top);
+        }
+        
+        .footer-content {
+            padding: 1rem;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        .count-badge {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 0.125rem 0.75rem;
+            border-radius: var(--radius-full);
+            margin-bottom: 0.75rem;
+        }
+        .count-value {
+            font-weight: 700;
+            color: var(--text-main);
+            margin-left: 0.25rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .stat-card {
+            padding: 0.75rem;
+            border-radius: var(--radius-xl);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            border: 1px solid;
+        }
+        
+        /* 必要血清量スタイル */
+        .stat-card.blue {
+            background-color: rgba(219, 234, 254, 0.7); /* blue-100 opacity */
+            border-color: #dbeafe;
+        }
+        .stat-card.blue .stat-deco { background-color: #dbeafe; }
+        .stat-card.blue .stat-label { 
+            color: var(--blue-700); 
+            border-color: #bfdbfe;
+        }
+        .stat-card.blue .stat-value { color: var(--blue-700); }
+
+        /* 採血目安量スタイル */
+        .stat-card.rose {
+            background-color: rgba(255, 228, 230, 0.7); /* rose-100 opacity */
+            border-color: #ffe4e6;
+        }
+        .stat-card.rose .stat-deco { background-color: #ffe4e6; }
+        .stat-card.rose .stat-label { 
+            color: var(--rose-700); 
+            border-color: #fecdd3;
+        }
+        .stat-card.rose .stat-value { color: var(--rose-600); }
+        
+        /* 警告色 */
+        .stat-text-warning { color: var(--amber-600) !important; }
+
+        .stat-deco {
+            position: absolute;
+            top: -0.5rem;
+            right: -0.5rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            opacity: 0.5;
+        }
+
+        .stat-label {
+            position: relative;
+            z-index: 10;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid;
+            padding: 0.125rem 0.75rem;
+            border-radius: var(--radius-full);
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-row {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: baseline;
+            gap: 0.25rem;
+            line-height: 1;
+        }
+
+        .stat-value {
+            font-family: monospace;
+            font-size: 2.5rem; /* ~5xl */
+            font-weight: 700;
+            letter-spacing: -0.05em;
+        }
+        .stat-unit {
+            font-size: 1rem;
+            font-weight: 700;
+            opacity: 0.8;
+        }
+
+        /* =========================================
+           管理画面
+           ========================================= */
+        .admin-section {
+            padding: 1.5rem 0;
+        }
+        .settings-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .input-number {
+            width: 6rem;
+            text-align: right;
+            padding: 0.375rem 0.75rem;
+            border: 1px solid #cbd5e1;
+            border-radius: var(--radius-md);
+            font-family: monospace;
+            font-size: 1.125rem;
+        }
+
+        .admin-table-container {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+        .admin-header {
+            background-color: #f8fafc;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: 3rem 1fr 4rem 3rem 5rem;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-sub);
+            text-transform: uppercase;
+        }
+        .admin-list {
+            list-style: none;
+        }
+        .admin-row {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            display: grid;
+            grid-template-columns: 3rem 1fr 4rem 3rem 5rem;
+            gap: 0.5rem;
+            align-items: center;
+            background-color: white;
+            transition: background-color 0.2s;
+            cursor: grab; /* ドラッグ可能カーソル */
+        }
+        .admin-row:active {
+            cursor: grabbing;
+        }
+        /* ドラッグ中のスタイル */
+        .admin-row.dragging {
+            opacity: 0.5;
+            background-color: #e2e8f0;
+        }
+        /* ドロップ先のスタイル */
+        .admin-row.drag-over-top {
+            border-top: 2px solid var(--primary-500);
+        }
+        .admin-row.drag-over-bottom {
+            border-bottom: 2px solid var(--primary-500);
+        }
+        
+        .row-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        .btn-action {
+            padding: 0.25rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: var(--text-sub);
+            border-radius: 4px;
+        }
+        .btn-action:hover {
+            background-color: #f1f5f9;
+        }
+        .text-edit:hover { color: var(--primary-600); }
+        .text-delete:hover { color: var(--rose-600); }
+
+        /* 並び替えボタン */
+        .sort-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .btn-sort {
+            font-size: 0.6rem;
+            line-height: 1;
+            padding: 2px 4px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            cursor: pointer;
+            color: #64748b;
+            border-radius: 2px;
+        }
+        .btn-sort:hover {
+            background: #f1f5f9;
+            color: var(--primary-600);
+        }
+
+        /* モーダル */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        @media (min-width: 640px) {
+            .modal-overlay { align-items: center; }
+        }
+        .modal-content {
+            background-color: white;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            width: 100%;
+            max-width: 32rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            animation: slideUp 0.3s ease-out;
+        }
+        @media (min-width: 640px) {
+            .modal-content { border-radius: var(--radius-lg); animation: fadeIn 0.2s ease-out; }
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+        .modal-body { padding: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem; }
+        .form-input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+        }
+        .modal-footer {
+            background-color: #f9fafb;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            flex-direction: row-reverse;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .btn-primary {
+            background-color: var(--primary-600);
+            color: white;
+        }
+        .btn-primary:hover { background-color: var(--primary-700); }
+        .btn-secondary {
+            background-color: white;
+            border-color: #d1d5db;
+            color: #374151;
+        }
+        .btn-secondary:hover { background-color: #f9fafb; }
+        
+        .btn-add {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            border: 1px solid var(--primary-500);
+            color: var(--primary-600);
+            background: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        .btn-add:hover { background-color: var(--primary-50); }
+
+        /* レスポンシブ調整 */
+        @media (max-width: 640px) {
+            .admin-header, .admin-row {
+                grid-template-columns: 2rem 1fr 3rem 3rem; /* カテゴリ省略 */
+            }
+            .admin-col-category { display: none; }
+            .stat-value { font-size: 2rem; }
+        }
     </style>
 </head>
-<body class="text-slate-700 min-h-screen pb-44 relative">
+<body>
 
     <!-- ==================== 計算機画面 ==================== -->
-    <div id="calculatorView" class="block">
-        <!-- ヘッダー -->
-        <header class="bg-white shadow-sm sticky top-0 z-20">
-            <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M6 3v12a5 5 0 0 0 5 5h2a5 5 0 0 0 5-5V3" />
-                        <line x1="6" y1="6" x2="18" y2="6" />
-                    </svg>
-                    <h1 class="text-xl font-bold text-slate-800 tracking-wide">検体必要量計算</h1>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="resetAll()" class="text-sm text-slate-500 hover:text-red-500 font-medium transition-colors px-3 py-1 rounded-md hover:bg-slate-100">
-                        リセット
-                    </button>
-                    <!-- 管理画面へ遷移ボタン -->
-                    <button onclick="toggleView('admin')" class="p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="管理メニュー">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <div id="calculatorView">
+        <header>
+            <div class="container">
+                <div class="header-inner">
+                    <div class="flex items-center gap-2">
+                        <!-- アイコンSVG -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-600);">
+                            <path d="M6 3v12a5 5 0 0 0 5 5h2a5 5 0 0 0 5-5V3" />
+                            <line x1="6" y1="6" x2="18" y2="6" />
                         </svg>
-                    </button>
+                        <h1 class="app-title">検体必要量計算</h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="resetAll()" class="btn-reset">リセット</button>
+                        <button onclick="toggleView('admin')" class="btn-icon" title="管理メニュー">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
             
-            <!-- 検索バー -->
-            <div class="bg-slate-50 border-b border-slate-200">
-                <div class="max-w-4xl mx-auto px-4 py-3">
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3">
-                            <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </span>
-                        <input type="text" id="searchInput" placeholder="項目名を検索 (例: CRE, TSH, 甲状腺...)" 
-                            class="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-full text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all shadow-sm placeholder-slate-400">
+            <div class="search-area">
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input type="text" id="searchInput" class="search-input" placeholder="項目名を検索 (例: CRE, TSH, 甲状腺...)">
                     </div>
                 </div>
             </div>
         </header>
 
-        <!-- メインコンテンツ -->
-        <main class="max-w-4xl mx-auto px-4 py-6">
-            <!-- 項目リストグリッド -->
-            <div id="itemsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
-
-            <!-- 検索結果なし -->
-            <div id="noResults" class="hidden text-center py-12">
-                <p class="text-slate-500 font-medium">該当する項目が見つかりません</p>
+        <main class="container">
+            <div id="itemsGrid" class="grid">
+                <!-- JSで生成 -->
+            </div>
+            
+            <div id="noResults" class="hidden text-center" style="padding: 3rem;">
+                <p style="color: var(--text-light); font-weight: 500;">該当する項目が見つかりません</p>
             </div>
         </main>
 
-        <!-- 固定フッター -->
-        <div class="fixed bottom-0 left-0 right-0 bg-white summary-bar z-30 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-            <!-- プログレスバー -->
-            <div class="h-1.5 w-full bg-slate-100">
-                <div id="volumeBar" class="h-full bg-primary-500 transition-all duration-300" style="width: 0%"></div>
-            </div>
-
-            <div class="max-w-4xl mx-auto px-4 py-4">
-                
-                <!-- 選択数（中央上部） -->
-                <div class="text-center mb-3">
-                    <span class="inline-flex items-center justify-center text-xs text-slate-500 font-medium bg-slate-50 px-3 py-0.5 rounded-full border border-slate-200">
-                        選択項目数: <span id="countDisplay" class="font-bold text-slate-700 ml-1">0</span>
-                    </span>
+        <div class="footer-bar">
+            
+            <div class="footer-content">
+                <div class="text-center" style="margin-bottom: 0.75rem;">
+                    <div class="count-badge">
+                        選択項目数: <span id="countDisplay" class="count-value">0</span>
+                    </div>
                 </div>
-
-                <!-- メイン数値エリア（2カラム） -->
-                <div class="grid grid-cols-2 gap-3 sm:gap-6">
-                    
-                    <!-- 左側：必要血清量 (青系) -->
-                    <div class="flex flex-col items-center justify-end p-3 rounded-xl bg-blue-50/70 border border-blue-100 shadow-sm relative overflow-hidden">
-                        <!-- 装飾用の背景円 -->
-                        <div class="absolute -right-2 -top-2 w-10 h-10 bg-blue-100 rounded-full opacity-50"></div>
-                        
-                        <div class="relative z-10 flex flex-col items-center w-full">
-                            <span class="text-xs sm:text-sm font-bold text-blue-700 bg-white/80 border border-blue-200 px-3 py-0.5 rounded-full mb-1 shadow-sm">
-                                必要血清量
-                            </span>
-                            <div class="flex items-baseline gap-1 text-blue-700 leading-none mt-1">
-                                <span id="totalDisplay" class="text-5xl sm:text-6xl font-bold font-mono tracking-tight">0</span>
-                                <span class="text-lg sm:text-xl font-bold opacity-80">µL</span>
-                            </div>
+                
+                <div class="stats-grid">
+                    <!-- 左: 必要血清量 (青) -->
+                    <div class="stat-card blue">
+                        <div class="stat-deco"></div>
+                        <span class="stat-label">必要血清量</span>
+                        <div class="stat-row">
+                            <span id="totalDisplay" class="stat-value">0</span>
+                            <span class="stat-unit">µL</span>
                         </div>
                     </div>
 
-                    <!-- 右側：採血目安量 (赤/ローズ系) -->
-                    <div class="flex flex-col items-center justify-end p-3 rounded-xl bg-rose-50/70 border border-rose-100 shadow-sm relative overflow-hidden">
-                        <!-- 装飾用の背景円 -->
-                        <div class="absolute -right-2 -top-2 w-10 h-10 bg-rose-100 rounded-full opacity-50"></div>
-
-                        <div class="relative z-10 flex flex-col items-center w-full">
-                            <span class="text-xs sm:text-sm font-bold text-rose-700 bg-white/80 border border-rose-200 px-3 py-0.5 rounded-full mb-1 shadow-sm">
-                                採血目安量
-                            </span>
-                            <div class="flex items-baseline gap-1 text-rose-600 leading-none mt-1">
-                                <span id="bloodDisplay" class="text-5xl sm:text-6xl font-bold font-mono tracking-tight">0</span>
-                                <span class="text-lg sm:text-xl font-bold opacity-80">mL</span>
-                            </div>
+                    <!-- 右: 採血目安量 (赤/ローズ) -->
+                    <div class="stat-card rose">
+                        <div class="stat-deco"></div>
+                        <span class="stat-label">採血目安量</span>
+                        <div class="stat-row">
+                            <span id="bloodDisplay" class="stat-value">0</span>
+                            <span class="stat-unit">mL</span>
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
     </div>
 
     <!-- ==================== 管理画面 ==================== -->
-    <div id="adminView" class="hidden bg-slate-100 min-h-screen">
-        <!-- 管理ヘッダー -->
-        <header class="bg-white shadow-sm sticky top-0 z-20">
-            <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    管理モード
-                </h2>
-                <div class="flex gap-2">
-                    <button onclick="openCSVImport()" class="text-sm bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded-md hover:bg-slate-50 transition-colors">
-                        CSV取込
-                    </button>
-                    <button onclick="toggleView('calculator')" class="text-sm bg-primary-600 text-white px-4 py-1.5 rounded-md hover:bg-primary-700 transition-colors shadow-sm">
-                        完了
-                    </button>
+    <div id="adminView" class="hidden" style="background-color: var(--bg-body); min-height: 100vh;">
+        <header>
+            <div class="container">
+                <div class="header-inner">
+                    <h2 class="app-title flex items-center gap-2">
+                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--text-sub);">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        管理モード
+                    </h2>
+                    <div class="flex gap-2">
+                        <button onclick="openCSVImport()" class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">CSV取込</button>
+                        <button onclick="toggleView('calculator')" class="btn btn-primary" style="padding: 0.25rem 1rem;">完了</button>
+                    </div>
                 </div>
             </div>
         </header>
 
-        <main class="max-w-4xl mx-auto px-4 py-6">
-            <!-- デッドボリューム設定 -->
-            <div class="bg-white rounded-xl p-4 mb-6 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <main class="container admin-section">
+            <div class="settings-card">
                 <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 21h18M5 21v-7l8-4 8 4v7" />
-                        <path d="M13 10V3" />
-                    </svg>
-                    <label for="adminDeadVolume" class="text-sm font-medium text-slate-700">デッドボリューム (µL)</label>
+                    <label for="adminDeadVolume" class="font-medium" style="color: var(--text-main);">デッドボリューム (µL)</label>
                 </div>
-                <div class="flex items-center gap-3">
-                    <input type="number" id="adminDeadVolume" value="0" min="0" step="1" 
-                        class="w-24 text-right px-3 py-1.5 border border-slate-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono text-lg">
-                    <span class="text-xs text-slate-400">※機器の吸い残し分</span>
+                <div>
+                    <input type="number" id="adminDeadVolume" value="0" min="0" step="1" class="input-number">
+                    <span style="font-size: 0.75rem; color: var(--text-light); margin-left: 0.5rem;">※吸い残し分</span>
                 </div>
             </div>
 
-            <div class="mb-4 flex justify-between items-center">
-                <p class="text-sm text-slate-500">ドラッグ＆ドロップで並び順を変更できます</p>
-                <button onclick="openEditModal()" class="text-sm flex items-center gap-1 bg-white border border-primary-500 text-primary-600 px-3 py-1.5 rounded-md hover:bg-primary-50 transition-colors">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+            <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                <p style="font-size: 0.875rem; color: var(--text-sub);">項目の編集・並び替え(ドラッグ可)</p>
+                <button onclick="openEditModal()" class="btn-add">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
                     新規追加
                 </button>
             </div>
 
-            <!-- 管理用リスト -->
-            <div class="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
-                <div class="bg-slate-50 px-4 py-3 border-b border-slate-200 grid grid-cols-12 gap-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    <div class="col-span-1"></div> <!-- Handle -->
-                    <div class="col-span-5 md:col-span-4">項目名</div>
-                    <div class="col-span-3 md:col-span-2 text-right">量 (µL)</div>
-                    <div class="col-span-3 md:col-span-3 hidden md:block">カテゴリ</div>
-                    <div class="col-span-3 md:col-span-2 text-right">操作</div>
+            <div class="admin-table-container">
+                <div class="admin-header">
+                    <div>順序</div>
+                    <div>項目名</div>
+                    <div class="text-right">量(µL)</div>
+                    <div class="admin-col-category">カテゴリ</div>
+                    <div class="text-right">操作</div>
                 </div>
-                <ul id="adminList" class="divide-y divide-slate-100">
+                <ul id="adminList" class="admin-list">
                     <!-- JSで生成 -->
                 </ul>
             </div>
-            
-            <div class="mt-8 text-center">
-                <button onclick="resetToDefault()" class="text-xs text-red-400 hover:text-red-600 underline">
+
+            <div class="text-center" style="margin-top: 2rem;">
+                <button onclick="resetToDefault()" style="font-size: 0.75rem; color: var(--rose-600); background: none; border: none; text-decoration: underline; cursor: pointer;">
                     初期データに戻す
                 </button>
             </div>
         </main>
     </div>
 
-    <!-- ==================== 編集モーダル ==================== -->
-    <div id="editModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeEditModal()"></div>
-            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id="modalTitle">項目の追加/編集</h3>
-                    <input type="hidden" id="editId">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">項目名</label>
-                            <input type="text" id="editName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">必要量 (µL)</label>
-                                <input type="number" id="editVol" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">カテゴリ</label>
-                                <input type="text" id="editCategory" list="categoryList" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                                <datalist id="categoryList">
-                                    <option value="生化学"></option>
-                                    <option value="免疫"></option>
-                                    <option value="電解質"></option>
-                                    <option value="血液"></option>
-                                </datalist>
-                            </div>
-                        </div>
+    <!-- モーダル -->
+    <div id="editModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h3 id="modalTitle" style="font-size: 1.125rem; font-weight: 700; margin-bottom: 1rem;">項目の追加/編集</h3>
+                <input type="hidden" id="editId">
+                <div class="form-group">
+                    <label class="form-label">項目名</label>
+                    <input type="text" id="editName" class="form-input">
+                </div>
+                <div class="flex gap-4">
+                    <div class="form-group w-full">
+                        <label class="form-label">必要量 (µL)</label>
+                        <input type="number" id="editVol" class="form-input">
+                    </div>
+                    <div class="form-group w-full">
+                        <label class="form-label">カテゴリ</label>
+                        <input type="text" id="editCategory" list="categoryList" class="form-input">
+                        <datalist id="categoryList">
+                            <option value="生化学"></option>
+                            <option value="免疫"></option>
+                            <option value="電解質"></option>
+                            <option value="血液"></option>
+                        </datalist>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" onclick="saveItem()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                        保存
-                    </button>
-                    <button type="button" onclick="closeEditModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                        キャンセル
-                    </button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="saveItem()" class="btn btn-primary">保存</button>
+                <button type="button" onclick="closeEditModal()" class="btn btn-secondary">キャンセル</button>
             </div>
         </div>
     </div>
 
-    <!-- ==================== CSVインポート用input (hidden) ==================== -->
     <input type="file" id="csvInput" accept=".csv" class="hidden" onchange="handleCSVSelect(this)">
 
     <script>
@@ -359,7 +860,7 @@
         let testItems = [];
         let selectedIds = new Set();
         let deadVolume = 0;
-        let sortableInstance = null;
+        let dragStartIndex;
 
         // DOM要素
         const grid = document.getElementById('itemsGrid');
@@ -369,21 +870,16 @@
         const countDisplay = document.getElementById('countDisplay');
         const bloodDisplay = document.getElementById('bloodDisplay');
         const noResults = document.getElementById('noResults');
-        const volumeBar = document.getElementById('volumeBar');
         const editModal = document.getElementById('editModal');
-        // デッドボリューム設定用
         const adminDeadVolume = document.getElementById('adminDeadVolume');
 
-        // ================= 初期化・データ管理 =================
-
+        // ================= 初期化 =================
         function init() {
             loadData();
             renderItems(testItems);
             
-            // イベントリスナー
             searchInput.addEventListener('input', (e) => filterItems(e.target.value));
             
-            // 管理画面デッドボリューム入力のリスナー
             if (adminDeadVolume) {
                 adminDeadVolume.value = deadVolume;
                 adminDeadVolume.addEventListener('input', (e) => {
@@ -392,36 +888,17 @@
                     calculateTotal();
                 });
             }
-
-            // SortableJS初期化 (管理画面用)
-            sortableInstance = new Sortable(adminList, {
-                animation: 150,
-                handle: '.drag-handle',
-                ghostClass: 'sortable-ghost',
-                dragClass: 'sortable-drag',
-                onEnd: function (evt) {
-                    // 並び順更新
-                    const newIndex = evt.newIndex;
-                    const oldIndex = evt.oldIndex;
-                    const item = testItems.splice(oldIndex, 1)[0];
-                    testItems.splice(newIndex, 0, item);
-                    saveData();
-                    // 計算機画面も再描画
-                    renderItems(testItems);
-                },
-            });
         }
 
+        // ================= データ操作 =================
         function loadData() {
-            // アイテムのロード
             const savedItems = localStorage.getItem('specimen_items');
             if (savedItems) {
                 testItems = JSON.parse(savedItems);
             } else {
-                testItems = JSON.parse(JSON.stringify(defaultItems)); // Deep copy
+                testItems = JSON.parse(JSON.stringify(defaultItems));
             }
 
-            // デッドボリュームのロード
             const savedDeadVolume = localStorage.getItem('specimen_dead_volume');
             if (savedDeadVolume) {
                 deadVolume = parseInt(savedDeadVolume);
@@ -432,18 +909,16 @@
 
         function saveData() {
             localStorage.setItem('specimen_items', JSON.stringify(testItems));
-            calculateTotal(); // 削除された項目が選択されていた場合の再計算など
+            calculateTotal();
         }
-
+        
         function saveDeadVolume() {
             localStorage.setItem('specimen_dead_volume', deadVolume);
         }
 
         function resetToDefault() {
-            if (confirm('全てのデータを初期状態に戻しますか？追加・編集した内容は失われます。')) {
+            if (confirm('全てのデータを初期状態に戻しますか？')) {
                 localStorage.removeItem('specimen_items');
-                // デッドボリュームもリセットする場合
-                // localStorage.removeItem('specimen_dead_volume'); 
                 loadData();
                 renderItems(testItems);
                 renderAdminList();
@@ -453,8 +928,7 @@
             }
         }
 
-        // ================= 計算機画面ロジック =================
-
+        // ================= 計算機ビューロジック =================
         function renderItems(items) {
             grid.innerHTML = '';
             
@@ -468,21 +942,21 @@
                 const card = document.createElement('div');
                 const isSelected = selectedIds.has(item.id);
                 
-                card.className = `item-card relative bg-white rounded-lg p-4 border border-transparent shadow-sm cursor-pointer hover:shadow-md select-none ${isSelected ? 'selected' : 'border-slate-100'}`;
+                card.className = `item-card ${isSelected ? 'selected' : ''}`;
                 card.onclick = () => toggleSelection(item.id, card);
                 
                 card.innerHTML = `
-                    <div class="flex justify-between items-start mb-1">
-                        <span class="font-bold text-lg text-slate-700 break-words leading-tight">${item.name}</span>
-                        <div class="check-icon w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center transition-all duration-200 opacity-0 transform scale-75">
-                            <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="flex justify-between items-start" style="margin-bottom:0.25rem;">
+                        <span class="item-name">${item.name}</span>
+                        <div class="check-icon">
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
                     </div>
-                    <div class="flex justify-between items-end mt-2">
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 truncate max-w-[60%]">${item.category || '未分類'}</span>
-                        <span class="font-mono text-xl font-bold ${isSelected ? 'text-primary-600' : 'text-slate-400'}">${item.vol}<span class="text-xs font-normal ml-0.5 text-slate-400">µL</span></span>
+                    <div class="item-meta">
+                        <span class="item-category">${item.category || '未分類'}</span>
+                        <span class="item-vol">${item.vol}<span class="unit-sm">µL</span></span>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -493,17 +967,9 @@
             if (selectedIds.has(id)) {
                 selectedIds.delete(id);
                 cardElement.classList.remove('selected');
-                cardElement.classList.add('border-slate-100');
-                const volText = cardElement.querySelector('.font-mono');
-                volText.classList.remove('text-primary-600');
-                volText.classList.add('text-slate-400');
             } else {
                 selectedIds.add(id);
                 cardElement.classList.add('selected');
-                cardElement.classList.remove('border-slate-100');
-                const volText = cardElement.querySelector('.font-mono');
-                volText.classList.remove('text-slate-400');
-                volText.classList.add('text-primary-600');
             }
             calculateTotal();
             if (navigator.vibrate) navigator.vibrate(5);
@@ -516,12 +982,10 @@
                 (item.category && item.category.toLowerCase().includes(lowerQuery))
             );
             renderItems(filtered);
-            // 選択状態の維持ロジックは簡略化のため省略（IDベースなので計算は維持される）
         }
 
         function calculateTotal() {
             let sum = 0;
-            // 存在しないIDが残っていないかフィルタリングしつつ計算
             const validSelectedIds = new Set();
             
             selectedIds.forEach(id => {
@@ -531,35 +995,15 @@
                     validSelectedIds.add(id);
                 }
             });
-            
-            // 削除された項目のIDを除去
             selectedIds = validSelectedIds;
 
-            // 必要総量
             const total = selectedIds.size > 0 ? sum + deadVolume : 0;
-            
-            // 採血目安 (必要総量 * 2, 1の位を切り上げ = 10の位で丸める)
-            // 例: 121 -> 242 -> 250(µL) -> 0.25(mL)
             const bloodEstimateMicro = total > 0 ? Math.ceil((total * 2) / 10) * 10 : 0;
             const bloodEstimateMilli = bloodEstimateMicro / 1000;
 
             animateValue(totalDisplay, parseInt(totalDisplay.innerText), total, 300);
-            animateValue(bloodDisplay, parseFloat(bloodDisplay.innerText), bloodEstimateMilli, 300, true); // 小数アニメーション
+            animateValue(bloodDisplay, parseFloat(bloodDisplay.innerText), bloodEstimateMilli, 300, true);
             countDisplay.innerText = selectedIds.size;
-            
-            const percentage = Math.min((total / 1000) * 100, 100);
-            volumeBar.style.width = `${percentage}%`;
-            
-            // 色の制御（バーのみ琥珀色に変更するロジックに変更）
-            if (total > 500) {
-                // バーの色を変更
-                volumeBar.classList.remove('bg-primary-500');
-                volumeBar.classList.add('bg-amber-500');
-            } else {
-                // バーの色を戻す
-                volumeBar.classList.add('bg-primary-500');
-                volumeBar.classList.remove('bg-amber-500');
-            }
         }
 
         function animateValue(obj, start, end, duration, isFloat = false) {
@@ -570,11 +1014,9 @@
                 let current = progress * (end - start) + start;
                 
                 if (isFloat) {
-                    // 小数の場合は小数点以下を調整して表示
-                    // 不要な0を消すため parseFloat を使用
-                    obj.innerHTML = parseFloat(current.toFixed(2));
+                    obj.innerText = parseFloat(current.toFixed(2));
                 } else {
-                    obj.innerHTML = Math.floor(current);
+                    obj.innerText = Math.floor(current);
                 }
                 
                 if (progress < 1) window.requestAnimationFrame(step);
@@ -590,7 +1032,6 @@
         }
 
         // ================= 管理画面ロジック =================
-
         window.toggleView = function(viewName) {
             const calcView = document.getElementById('calculatorView');
             const adminView = document.getElementById('adminView');
@@ -599,12 +1040,10 @@
                 calcView.classList.add('hidden');
                 adminView.classList.remove('hidden');
                 renderAdminList();
-                // 管理画面を開いたときにデッドボリュームの値をセット
                 if(adminDeadVolume) adminDeadVolume.value = deadVolume;
             } else {
                 adminView.classList.add('hidden');
                 calcView.classList.remove('hidden');
-                // 管理画面での変更を反映して再描画
                 renderItems(testItems);
             }
         }
@@ -613,30 +1052,117 @@
             adminList.innerHTML = '';
             testItems.forEach((item, index) => {
                 const li = document.createElement('li');
-                li.className = 'admin-row bg-white flex items-center px-4 py-3 hover:bg-slate-50 transition-colors group';
+                li.className = 'admin-row';
+                li.setAttribute('draggable', 'true');
+                li.dataset.index = index;
+                
+                // ドラッグイベント
+                li.addEventListener('dragstart', dragStart);
+                li.addEventListener('dragover', dragOver);
+                li.addEventListener('drop', dragDrop);
+                li.addEventListener('dragenter', dragEnter);
+                li.addEventListener('dragleave', dragLeave);
+
                 li.innerHTML = `
-                    <div class="grid grid-cols-12 gap-4 w-full items-center">
-                        <div class="col-span-1 drag-handle text-slate-300 hover:text-slate-500 cursor-grab flex justify-center">
-                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" /></svg>
-                        </div>
-                        <div class="col-span-5 md:col-span-4 font-bold text-slate-700 truncate">${item.name}</div>
-                        <div class="col-span-3 md:col-span-2 text-right font-mono text-slate-600">${item.vol} µL</div>
-                        <div class="col-span-3 md:col-span-3 text-sm text-slate-500 hidden md:block truncate">${item.category || '-'}</div>
-                        <div class="col-span-3 md:col-span-2 flex justify-end gap-2">
-                            <button onclick="openEditModal(${item.id})" class="text-primary-600 hover:text-primary-800 p-1">
-                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                            </button>
-                            <button onclick="deleteItem(${index})" class="text-red-400 hover:text-red-600 p-1">
-                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
-                        </div>
+                    <div class="sort-controls">
+                        <button class="btn-sort" onclick="moveItem(${index}, -1)" ${index===0 ? 'disabled style="opacity:0.3"' : ''}>▲</button>
+                        <button class="btn-sort" onclick="moveItem(${index}, 1)" ${index===testItems.length-1 ? 'disabled style="opacity:0.3"' : ''}>▼</button>
+                    </div>
+                    <div style="font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.name}</div>
+                    <div class="text-right" style="font-family:monospace;">${item.vol}</div>
+                    <div class="admin-col-category text-right" style="color:var(--text-sub); font-size:0.75rem;">${item.category || '-'}</div>
+                    <div class="row-actions">
+                        <button onclick="openEditModal(${item.id})" class="btn-action text-edit">
+                            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button onclick="deleteItem(${index})" class="btn-action text-delete">
+                            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
                     </div>
                 `;
                 adminList.appendChild(li);
             });
         }
 
-        // 編集・追加モーダル関連
+        // ドラッグアンドドロップ関数群
+        function dragStart() {
+            dragStartIndex = +this.dataset.index;
+            this.classList.add('dragging');
+        }
+
+        function dragOver(e) {
+            e.preventDefault();
+            const rect = this.getBoundingClientRect();
+            const offset = e.clientY - rect.top;
+            
+            this.classList.remove('drag-over-top', 'drag-over-bottom');
+            if (offset < rect.height / 2) {
+                this.classList.add('drag-over-top');
+            } else {
+                this.classList.add('drag-over-bottom');
+            }
+        }
+
+        function dragEnter(e) {
+            e.preventDefault();
+        }
+
+        function dragLeave() {
+            this.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+
+        function dragDrop(e) {
+            const dragEndIndex = +this.dataset.index;
+            const rect = this.getBoundingClientRect();
+            const offset = e.clientY - rect.top;
+            let targetIndex = dragEndIndex;
+
+            // 下半分にドロップした場合は、対象の後ろに挿入
+            if (offset >= rect.height / 2) {
+                // ドロップ先が自分自身より後ろならインデックス調整不要だが、
+                // spliceロジック的には "挿入位置" なので、自分より後ろに持っていくなら +1
+                // ただし remove してから insert するロジックなので微調整が必要
+                targetIndex = dragEndIndex + 1;
+            }
+            
+            // 自分自身へのドロップは無視
+            if (dragStartIndex === dragEndIndex) {
+                this.classList.remove('drag-over-top', 'drag-over-bottom', 'dragging');
+                return;
+            }
+
+            // アイテムの移動
+            const item = testItems[dragStartIndex];
+            // 先に削除
+            testItems.splice(dragStartIndex, 1);
+            
+            // 削除によってインデックスがずれる場合の補正
+            // 元の配列で、削除した位置より後ろに挿入する場合、targetIndexを-1する必要がある
+            let finalIndex = targetIndex;
+            if (dragStartIndex < targetIndex) {
+                finalIndex = targetIndex - 1;
+            }
+
+            testItems.splice(finalIndex, 0, item);
+            
+            this.classList.remove('drag-over-top', 'drag-over-bottom', 'dragging');
+            
+            saveData();
+            renderAdminList();
+        }
+
+        // ボタンでの移動
+        window.moveItem = function(index, direction) {
+            if (index + direction < 0 || index + direction >= testItems.length) return;
+            
+            const temp = testItems[index];
+            testItems[index] = testItems[index + direction];
+            testItems[index + direction] = temp;
+            
+            saveData();
+            renderAdminList();
+        }
+
         window.openEditModal = function(id = null) {
             editModal.classList.remove('hidden');
             const title = document.getElementById('modalTitle');
@@ -677,13 +1203,11 @@
             }
 
             if (idInput) {
-                // 編集
                 const index = testItems.findIndex(i => i.id == idInput);
                 if (index !== -1) {
                     testItems[index] = { ...testItems[index], name, vol, category };
                 }
             } else {
-                // 追加 (新しいIDを生成)
                 const newId = testItems.length > 0 ? Math.max(...testItems.map(i => i.id)) + 1 : 1;
                 testItems.push({ id: newId, name, vol, category });
             }
@@ -701,8 +1225,6 @@
             }
         }
 
-        // ================= CSVインポート =================
-
         window.openCSVImport = function() {
             document.getElementById('csvInput').click();
         }
@@ -715,7 +1237,7 @@
             reader.onload = function(e) {
                 const text = e.target.result;
                 parseCSV(text);
-                input.value = ''; // Reset for same file selection
+                input.value = '';
             };
             reader.readAsText(file);
         }
@@ -726,11 +1248,9 @@
                 const newItems = [];
                 let startId = 1;
 
-                // ヘッダー行をスキップするか判定 (簡単な判定: 1行目に数値が含まれていなければヘッダーとみなす)
                 let startIndex = 0;
                 if (lines.length > 0) {
                     const firstRowCols = lines[0].split(',');
-                    // 2カラム目の値が数値でなければヘッダーとみなす
                     if (firstRowCols.length >= 2 && isNaN(parseInt(firstRowCols[1]))) {
                         startIndex = 1;
                     }
@@ -744,7 +1264,6 @@
                     if (cols.length >= 2) {
                         const name = cols[0].trim();
                         const vol = parseInt(cols[1].trim());
-                        // 3列目があればカテゴリとする、なければ自動判別は難しいので空にする
                         const category = cols[2] ? cols[2].trim() : '未分類';
 
                         if (name && !isNaN(vol)) {
@@ -766,7 +1285,7 @@
                         alert('インポートが完了しました');
                     }
                 } else {
-                    alert('有効なデータが見つかりませんでした。CSVのフォーマットを確認してください（例: 項目名,必要量,カテゴリ）');
+                    alert('データが見つかりませんでした');
                 }
             } catch (e) {
                 console.error(e);
@@ -774,9 +1293,8 @@
             }
         }
 
-        // 開始
+        // 実行
         init();
-
     </script>
 </body>
 </html>
